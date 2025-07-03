@@ -2,7 +2,7 @@
 
 export interface CellData {
   id: string;
-  value: string | number | null;
+  value: unknown;
   type?: 'text' | 'number' | 'date' | 'url' | 'custom';
   textAlign?: 'left' | 'center' | 'right';
   format?: string;
@@ -12,7 +12,7 @@ export interface CellData {
     backgroundColor?: string;
   };
   isEditing?: boolean;
-  customRenderer?: (props: { value: any, rowId: string, colId: string }) => React.ReactNode;
+  customRenderer?: (props: { value: unknown, rowId: string, colId: string }) => React.ReactNode;
 }
 
 export interface ColumnDef {
@@ -27,7 +27,7 @@ export interface ColumnDef {
   headerClass?: string;
   cellClass?: string;
   textAlign?: 'left' | 'center' | 'right';
-  cellRenderer?: (props: { value: any, rowId: string, colId: string }) => React.ReactNode;
+  cellRenderer?: (props: { value: unknown, rowId: string, colId: string }) => React.ReactNode;
   headerRenderer?: (props: { column: ColumnDef }) => React.ReactNode;
   isResizable?: boolean;
   isSortable?: boolean;
@@ -37,7 +37,7 @@ export interface ColumnDef {
 export interface RowData {
   id: string;
   cells?: Record<string, CellData>;
-  [key: string]: any; // For dynamic properties
+  [key: string]: unknown; // For dynamic properties
   height?: number;
   isHidden?: boolean;
 }
@@ -53,7 +53,7 @@ export interface TableState {
 export interface TableProps {
   columns: ColumnDef[];
   data: RowData[];
-  onCellChange?: (rowId: string, colId: string, value: any) => void;
+  onCellChange?: (rowId: string, colId: string, value: unknown) => void;
   onColumnTitleChange?: (columnId: string, title: string) => void;
   onColumnTypeChange?: (columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => void;
   onRowAdd?: () => void;
@@ -69,4 +69,15 @@ export interface TableProps {
   headerClassName?: string;
   cellClassName?: string;
   rowClassName?: string;
+}
+
+export interface TableContextType {
+  state: TableState;
+  setCellValue: (rowId: string, colId: string, value: unknown) => void;
+  addColumn: () => void;
+  addRow: () => void;
+  setActiveCell: (rowId: string, colId: string) => void;
+  startEditingCell: (rowId: string, colId: string) => void;
+  stopEditingCell: () => void;
+  getColumnLetter: (index: number) => string;
 }

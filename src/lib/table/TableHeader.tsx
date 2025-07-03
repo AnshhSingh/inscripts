@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ColumnDef } from './types';
+import { TextIcon, NumberIcon, DateIcon, UrlIcon, CustomIcon, ChevronDownIcon } from '../icons';
 
 interface TableHeaderProps {
   column: ColumnDef;
@@ -78,15 +79,15 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
     const type = column.type || 'text';
     switch(type) {
       case 'number':
-        return <span title="Number Column" className="w-5 h-5 flex items-center justify-center">#</span>;
+        return <NumberIcon title="Number Column" className="w-5 h-5" />;
       case 'date':
-        return <span title="Date Column" className="w-5 h-5 flex items-center justify-center">📅</span>;
+        return <DateIcon title="Date Column" className="w-5 h-5" />;
       case 'url':
-        return <span title="URL Column" className="w-5 h-5 flex items-center justify-center">🔗</span>;
+        return <UrlIcon title="URL Column" className="w-5 h-5" />;
       case 'custom':
-        return <span title="Custom Column" className="w-5 h-5 flex items-center justify-center">✨</span>;
+        return <CustomIcon title="Custom Column" className="w-5 h-5" />;
       default:
-        return <span title="Text Column" className="w-5 h-5 flex items-center justify-center">T</span>;
+        return <TextIcon title="Text Column" className="w-5 h-5" />;
     }
   };
 

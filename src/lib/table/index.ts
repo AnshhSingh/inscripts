@@ -4,4 +4,6 @@ export * from './SimpleTable';
 export * from './TableHeader';
 export * from './TableCell';
 export * from './TableRow';
-export * from './TableContext';
+export * from './context';
+export * from './hooks';
+export * from './TableProvider';

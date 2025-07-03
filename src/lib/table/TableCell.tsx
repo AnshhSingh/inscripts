@@ -1,20 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTable } from './hooks';
 
 interface TableCellProps {
   rowId: string;
   colId: string;
-  value: any;
+  value: unknown;
   isActive?: boolean;
   isEditing?: boolean;
   type?: 'text' | 'number' | 'date' | 'url' | 'custom';
-  rowType?: any;
+  rowType?: string;
   textAlign?: 'left' | 'center' | 'right';
   className?: string;
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
-  onChange?: (value: any) => void;
+  onChange?: (value: unknown) => void;
   onTypeChange?: (newType: 'text' | 'number' | 'date' | 'url' | 'custom') => void;
-  customRenderer?: (props: { value: any, rowId: string, colId: string }) => React.ReactNode;
+  customRenderer?: (props: { value: unknown, rowId: string, colId: string }) => React.ReactNode;
   showControls?: boolean;
 }
 
@@ -42,17 +43,10 @@ export const TableCell: React.FC<TableCellProps> = ({
   // State to force rerender when needed for URL cells
   const [forceUpdate, setForceUpdate] = useState(0);
   
-  // Update local state when the value prop changes or editing state changes
+  // Update local state when the value prop changes
   useEffect(() => {
-    if (isEditing && type === 'url' && value) {
-      // For URL type, strip the protocol when editing for better UX
-      const urlValue = String(value || '').replace(/^https?:\/\//, '');
-      setEditValue(urlValue);
-    } else {
-      // For other types, just use the value as-is
-      setEditValue(String(value || ''));
-    }
-  }, [value, isEditing, type]);
+    setEditValue(String(value || ''));
+  }, [value]);
 
   // Special handling for URL type to ensure proper rendering
   useEffect(() => {
@@ -90,34 +84,25 @@ export const TableCell: React.FC<TableCellProps> = ({
 
 
 
+  const { stopEditingCell } = useTable();
+  
   const handleBlur = () => {
     if (onChange) {
-      // For URL type, make sure to add https:// if needed
-      if (type === 'url' && editValue && editValue.trim() !== '' && !/^https?:\/\//i.test(editValue)) {
-        onChange(`https://${editValue}`);
-      } else {
-        onChange(editValue);
-      }
+      onChange(editValue);
+      stopEditingCell();
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       if (onChange) {
-        // For URL type, make sure to add https:// if needed
-        if (type === 'url' && editValue && editValue.trim() !== '' && !/^https?:\/\//i.test(editValue)) {
-          onChange(`https://${editValue}`);
-        } else {
-          onChange(editValue);
-        }
+        onChange(editValue);
+        stopEditingCell();
       }
     } else if (e.key === 'Escape') {
-      if (type === 'url' && value) {
-        // For URL, strip the protocol when showing in edit field
-        setEditValue(String(value || '').replace(/^https?:\/\//, ''));
-      } else {
-        setEditValue(String(value || ''));
-      }
+      setEditValue(String(value || ''));
+      stopEditingCell();
       if (onChange) {
         onChange(value);
       }
@@ -181,56 +166,55 @@ export const TableCell: React.FC<TableCellProps> = ({
             switch(type) {
               case 'date':
                 try {
-                  const date = new Date(value);
-                  if (!isNaN(date.getTime())) {
-                    return date.toLocaleDateString();
+                  // Type guard for value that can be used as Date constructor parameter
+                  if (typeof value === 'string' || typeof value === 'number' || value instanceof Date) {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                      return date.toLocaleDateString();
+                    }
                   }
-                  return value;
+                  return String(value);
                 } catch (e) {
-                  return value;
+                  return String(value);
                 }
-              case 'url':
-                // Ensure we have a properly formatted URL with protocol
-                const ensureProtocol = (url: string) => {
-                  if (!url) return '';
-                  return url.match(/^https?:\/\//i) ? url : `https://${url}`;
-                };
-                
+              case 'url': {
                 // Create a function to safely open the URL in a new tab
                 const openUrl = (e: React.MouseEvent) => {
                   e.stopPropagation();
                   e.preventDefault();
                   if (value && typeof value === 'string') {
                     try {
-                      const url = ensureProtocol(value);
-                      window.open(url, '_blank', 'noopener,noreferrer');
+                      window.open(value, '_blank', 'noopener,noreferrer');
                     } catch (err) {
                       console.error('Failed to open URL:', err);
                     }
                   }
                 };
                 
-                const urlWithProtocol = ensureProtocol(String(value));
+                // Type guard for string URLs
+                const urlString = typeof value === 'string' ? value : String(value);
                 
                 // Render as an anchor with proper styling and click handling
                 return (
                   <div className="relative w-full overflow-hidden">
                     <a 
-                      href={urlWithProtocol} 
+                      href={urlString} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       onClick={openUrl}
                       className="text-blue-600 underline block w-full overflow-hidden text-ellipsis whitespace-nowrap absolute inset-0"
-                      key={`url-${urlWithProtocol}-${forceUpdate}-${isActive ? 'active' : 'inactive'}`} // Key helps force remounting
+                      key={`url-${urlString}-${forceUpdate}`} // Key helps force remounting
                     >
-                      {value}
+                      {urlString}
                     </a>
                     {/* Invisible text to maintain layout */}
-                    <span className="invisible">{value}</span>
+                    <span className="invisible">{urlString}</span>
                   </div>
                 );
-              default:
-                return value;
+              }
+              default: {
+                return String(value);
+              }
             }
           })()}
         </div>

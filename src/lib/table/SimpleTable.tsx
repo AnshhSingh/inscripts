@@ -4,10 +4,7 @@ import { TableHeader } from './TableHeader';
 import { TableCell } from './TableCell';
 import { TableRow } from './TableRow';
 
-/**
- * Simple Table Component
- * A lightweight table component for React applications
- */
+//main component for rendering a simple table its not reallythat simple ig
 export const SimpleTable: React.FC<TableProps> = ({
   columns,
   data,
@@ -37,25 +34,6 @@ export const SimpleTable: React.FC<TableProps> = ({
   
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // Prepare cell value for editing - this is useful for URL cells
-  const prepareCellValueForEditing = useCallback((rowId: string, colId: string) => {
-    // Find the cell's value
-    const row = data.find(row => row.id === rowId);
-    if (!row) return null;
-    
-    const column = columns.find(col => col.id === colId);
-    if (!column) return null;
-    
-    let value = column.accessorKey ? row[column.accessorKey] : row.cells?.[colId]?.value;
-    
-    // If it's a URL cell, remove the protocol for easier editing
-    if (column.type === 'url' && value && typeof value === 'string') {
-      return value.replace(/^https?:\/\//, '');
-    }
-    
-    return value;
-  }, [data, columns]);
-
   // Handle cell click
   const handleCellClick = useCallback((rowId: string, colId: string, e: React.MouseEvent) => {
     if (!enableSelection) return;
@@ -71,7 +49,6 @@ export const SimpleTable: React.FC<TableProps> = ({
 
     // Double-click to edit
     if (enableEditing && e.detail === 2) {
-      // Start cell editing
       setTableState(prev => ({
         ...prev,
         editingCell: { rowId, colId },
@@ -80,7 +57,7 @@ export const SimpleTable: React.FC<TableProps> = ({
     }
   }, [enableSelection, enableEditing, columns]);
 
-  const handleCellChange = useCallback((rowId: string, colId: string, value: any) => {
+  const handleCellChange = useCallback((rowId: string, colId: string, value: unknown) => {
     // Find column to check if it's a URL type
     const column = columns.find(col => col.id === colId);
     const isUrlColumn = column?.type === 'url';
@@ -105,7 +82,7 @@ export const SimpleTable: React.FC<TableProps> = ({
         editingCell: null
       }));
     }, 10);
-  }, [onCellChange]);
+  }, [onCellChange, columns]);
 
   const handleColumnTypeChange = useCallback((columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => {
     if (onColumnTypeChange) {
@@ -193,7 +170,7 @@ export const SimpleTable: React.FC<TableProps> = ({
         }
       } else if (e.key === 'Enter' && enableEditing) {
         if (tableState.editingCell) {
-          // Finish editing and move to next row
+       
           setTableState(prev => ({
             ...prev,
             editingCell: null,
@@ -203,7 +180,7 @@ export const SimpleTable: React.FC<TableProps> = ({
             activeColumn: colId
           }));
         } else {
-          // Start editing the cell
+         
           setTableState(prev => ({
             ...prev,
             editingCell: { rowId, colId }
