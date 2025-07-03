@@ -3,6 +3,7 @@ import { TableProps, RowData, ColumnDef, CellData } from './types';
 import { TableHeader } from './TableHeader';
 import { TableCell } from './TableCell';
 import { TableRow } from './TableRow';
+import { useTable } from './hooks';
 
 //main component for rendering a simple table its not reallythat simple ig
 export const SimpleTable: React.FC<TableProps> = ({
@@ -25,64 +26,34 @@ export const SimpleTable: React.FC<TableProps> = ({
   cellClassName = '',
   rowClassName = ''
 }) => {
-  const [tableState, setTableState] = useState({
-    activeCell: null,
-    selectedCells: [],
-    editingCell: null,
-    activeColumn: null
-  });
-  
   const tableRef = useRef<HTMLDivElement>(null);
+  const { state, setActiveCell, startEditingCell, stopEditingCell } = useTable();
 
   // Handle cell click
   const handleCellClick = useCallback((rowId: string, colId: string, e: React.MouseEvent) => {
     if (!enableSelection) return;
-
-    // Get the column for the cell
-    const column = columns.find(col => col.id === colId);
-    
-    setTableState(prev => ({
-      ...prev,
-      activeCell: { rowId, colId },
-      activeColumn: colId
-    }));
-
-    // Double-click to edit
+    setActiveCell(rowId, colId);
     if (enableEditing && e.detail === 2) {
-      setTableState(prev => ({
-        ...prev,
-        editingCell: { rowId, colId },
-        activeCell: { rowId, colId }
-      }));
+      startEditingCell(rowId, colId);
     }
-  }, [enableSelection, enableEditing, columns]);
+  }, [enableSelection, enableEditing, setActiveCell, startEditingCell]);
 
   const handleCellChange = useCallback((rowId: string, colId: string, value: unknown) => {
-    // Find column to check if it's a URL type
     const column = columns.find(col => col.id === colId);
     const isUrlColumn = column?.type === 'url';
-    
-    // For URL columns, ensure the value has a protocol
     let processedValue = value;
     if (isUrlColumn && value && typeof value === 'string' && value.trim() !== '') {
-      // If URL doesn't start with a protocol, add https://
       if (!/^https?:\/\//i.test(value)) {
         processedValue = `https://${value}`;
       }
     }
-    
     if (onCellChange) {
       onCellChange(rowId, colId, processedValue);
     }
-
-    // Short delay to ensure cell re-renders properly after editing ends
-    setTimeout(() => {
-      setTableState(prev => ({
-        ...prev,
-        editingCell: null
-      }));
-    }, 10);
-  }, [onCellChange, columns]);
+    stopEditingCell();
+    // Focus table for keyboard navigation
+    if (tableRef.current) tableRef.current.focus();
+  }, [onCellChange, columns, stopEditingCell]);
 
   const handleColumnTypeChange = useCallback((columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => {
     if (onColumnTypeChange) {
@@ -90,128 +61,77 @@ export const SimpleTable: React.FC<TableProps> = ({
     }
   }, [onColumnTypeChange]);
 
-  // Handle keyboard navigation
+  // Keyboard navigation
   useEffect(() => {
     if (!enableSelection) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!tableState.activeCell) return;
-      
-      const { rowId, colId } = tableState.activeCell;
+      if (!state.activeCell) return;
+      const { rowId, colId } = state.activeCell;
       const rowIndex = data.findIndex(row => row.id === rowId);
       const colIndex = columns.findIndex(col => col.id === colId);
-      
       if (rowIndex === -1 || colIndex === -1) return;
-      
-      // Bonus task simple keyboard navigation
-      if (e.key === 'ArrowUp' && rowIndex > 0) {
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setTableState(prev => ({
-          ...prev,
-          activeCell: { rowId: data[rowIndex - 1].id, colId },
-          activeColumn: colId
-        }));
-      } else if (e.key === 'ArrowDown' && rowIndex < data.length - 1) {
+        setActiveCell(data[(rowIndex - 1 + data.length) % data.length].id, colId);
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setTableState(prev => ({
-          ...prev,
-          activeCell: { rowId: data[rowIndex + 1].id, colId },
-          activeColumn: colId
-        }));
-      } else if (e.key === 'ArrowLeft' && colIndex > 0) {
+        setActiveCell(data[(rowIndex + 1) % data.length].id, colId);
+      } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setTableState(prev => ({
-          ...prev,
-          activeCell: { rowId, colId: columns[colIndex - 1].id }
-        }));
-      } else if (e.key === 'ArrowRight' && colIndex < columns.length - 1) {
+        setActiveCell(rowId, columns[(colIndex - 1 + columns.length) % columns.length].id);
+      } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setTableState(prev => ({
-          ...prev,
-          activeCell: { rowId, colId: columns[colIndex + 1].id }
-        }));
+        setActiveCell(rowId, columns[(colIndex + 1) % columns.length].id);
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        
         if (e.shiftKey) {
-          
-          if (colIndex > 0) {
-            setTableState(prev => ({
-              ...prev,
-              activeCell: { rowId, colId: columns[colIndex - 1].id }
-            }));
-          } else if (rowIndex > 0) {
-            setTableState(prev => ({
-              ...prev,
-              activeCell: { 
-                rowId: data[rowIndex - 1].id, 
-                colId: columns[columns.length - 1].id 
-              },
-              activeColumn: columns[columns.length - 1].id
-            }));
+          if (colIndex === 0 && rowIndex === 0) {
+            setActiveCell(data[data.length - 1].id, columns[columns.length - 1].id);
+          } else if (colIndex === 0) {
+            setActiveCell(data[(rowIndex - 1 + data.length) % data.length].id, columns[columns.length - 1].id);
+          } else {
+            setActiveCell(rowId, columns[(colIndex - 1 + columns.length) % columns.length].id);
           }
         } else {
-          // Move forward
-          if (colIndex < columns.length - 1) {
-            setTableState(prev => ({
-              ...prev,
-              activeCell: { rowId, colId: columns[colIndex + 1].id }
-            }));
-          } else if (rowIndex < data.length - 1) {
-            setTableState(prev => ({
-              ...prev,
-              activeCell: { 
-                rowId: data[rowIndex + 1].id, 
-                colId: columns[0].id 
-              },
-              activeColumn: columns[0].id
-            }));
+          if (colIndex === columns.length - 1 && rowIndex === data.length - 1) {
+            setActiveCell(data[0].id, columns[0].id);
+          } else if (colIndex === columns.length - 1) {
+            setActiveCell(data[(rowIndex + 1) % data.length].id, columns[0].id);
+          } else {
+            setActiveCell(rowId, columns[(colIndex + 1) % columns.length].id);
           }
         }
       } else if (e.key === 'Enter' && enableEditing) {
-        if (tableState.editingCell) {
-       
-          setTableState(prev => ({
-            ...prev,
-            editingCell: null,
-            activeCell: rowIndex < data.length - 1 
-              ? { rowId: data[rowIndex + 1].id, colId }
-              : { rowId, colId },
-            activeColumn: colId
-          }));
+        if (state.editingCell) {
+          stopEditingCell();
+          setActiveCell(data[(rowIndex + 1) % data.length].id, colId);
         } else {
-         
-          setTableState(prev => ({
-            ...prev,
-            editingCell: { rowId, colId }
-          }));
+          startEditingCell(rowId, colId);
         }
-      } else if (e.key === 'Escape' && tableState.editingCell) {
-  
-        setTableState(prev => ({
-          ...prev,
-          editingCell: null,
-          showRowTypeMenu: null
-        }));
+      } else if (e.key === 'Escape' && state.editingCell) {
+        stopEditingCell();
       }
     };
-
     const tableElement = tableRef.current;
     if (tableElement) {
       tableElement.addEventListener('keydown', handleKeyDown);
     }
-
     return () => {
       if (tableElement) {
         tableElement.removeEventListener('keydown', handleKeyDown);
       }
     };
-  }, [tableState.activeCell, tableState.editingCell, data, columns, enableSelection, enableEditing]);
+  }, [state.activeCell, state.editingCell, data, columns, enableSelection, enableEditing, setActiveCell, startEditingCell, stopEditingCell]);
 
-  // Function to determine if a column is active
-  const isColumnActive = (columnId: string) => {
-    return tableState.activeColumn === columnId;
-  };
+  // Scroll active cell into view
+  useEffect(() => {
+    if (!state.activeCell) return;
+    const { rowId, colId } = state.activeCell;
+    const cell = document.querySelector(`[data-rowid="${rowId}"][data-colid="${colId}"]`);
+    if (cell && 'scrollIntoView' in cell) {
+      (cell as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [state.activeCell]);
 
   return (
     <div className={`simple-table-container ${className}`} style={style}>
@@ -260,11 +180,11 @@ export const SimpleTable: React.FC<TableProps> = ({
                   ? row[column.accessorKey] 
                   : row.cells?.[column.id]?.value;
                 
-                const isActive = tableState.activeCell?.rowId === row.id && 
-                                tableState.activeCell?.colId === column.id;
+                const isActive = state.activeCell?.rowId === row.id && 
+                                state.activeCell?.colId === column.id;
                 
-                const isEditing = tableState.editingCell?.rowId === row.id && 
-                                tableState.editingCell?.colId === column.id;
+                const isEditing = state.editingCell?.rowId === row.id && 
+                                state.editingCell?.colId === column.id;
                 
                 return (
                   <TableCell
@@ -282,6 +202,8 @@ export const SimpleTable: React.FC<TableProps> = ({
                     onClick={(e) => handleCellClick(row.id, column.id, e)}
                     onChange={(value) => handleCellChange(row.id, column.id, value)}
                     customRenderer={column.cellRenderer}
+                    data-rowid={row.id}
+                    data-colid={column.id}
                   />
                 );
               })}

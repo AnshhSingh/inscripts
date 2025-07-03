@@ -141,6 +141,8 @@ export const TableCell: React.FC<TableCellProps> = ({
   // Default cell type (text, number, date, url)
   return (
     <div
+      data-rowid={rowId}
+      data-colid={colId}
       onClick={onClick}
       className={`relative justify-center items-center flex min-h-8 w-full overflow-hidden text-xs font-normal leading-none h-8 bg-white px-2 border-b border-gray-200 ${alignClass} ${className} ${isActive ? 'ring-2 ring-blue-400 z-10 bg-blue-50' : 'hover:bg-gray-50'} cursor-cell`}
       style={style}
