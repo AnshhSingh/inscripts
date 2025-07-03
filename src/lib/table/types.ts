@@ -23,6 +23,7 @@ export interface ColumnDef {
   type?: 'text' | 'number' | 'date' | 'url' | 'custom';
   headerIcon?: string;
   headerStyle?: React.CSSProperties;
+  headerColor?: string;
   cellStyle?: React.CSSProperties;
   headerClass?: string;
   cellClass?: string;
@@ -56,6 +57,8 @@ export interface TableProps {
   onCellChange?: (rowId: string, colId: string, value: unknown) => void;
   onColumnTitleChange?: (columnId: string, title: string) => void;
   onColumnTypeChange?: (columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => void;
+  onHeaderColorChange?: (columnId: string, color: string) => void;
+  onColumnResize?: (columnId: string, width: string) => void;
   onRowAdd?: () => void;
   onColumnAdd?: () => void;
   showRowNumbers?: boolean;

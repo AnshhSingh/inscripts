@@ -3,86 +3,79 @@ import {
   SimpleTable, 
   ColumnDef, 
   RowData, 
-  TableProvider 
+  TableProvider,
+  exportToExcel,
+  parseExcelFile
 } from '@/lib/table';
+import { defaultColumns, defaultRows } from '@/lib/table/defaultData';
 
-const ExcelSpreadsheet: React.FC = () => {
+interface ExcelSpreadsheetProps {
+  searchTerm?: string;
+}
 
-  const [columns, setColumns] = useState<ColumnDef[]>([
-    {
-      id: 'col-1',
-      title: 'A',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-2',
-      title: 'B',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-3',
-      title: 'C',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-4',
-      title: 'D',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-5',
-      title: 'E',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-6',
-      title: 'F',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-7',
-      title: 'G',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-8',
-      title: 'H',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-9',
-      title: 'I',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-10',
-      title: 'J',
-      width: 'min-w-32 w-32',
-      type: 'text',
-    },
-    {
-      id: 'col-11',
-      title: 'K',
-      width: 'min-w-32 w-32',
-      type: 'text',
+interface ExcelSpreadsheetRef {
+  handleExport: () => void;
+  handleImport: (file: File) => Promise<void>;
+}
+
+const ExcelSpreadsheet = React.forwardRef<ExcelSpreadsheetRef, ExcelSpreadsheetProps>((props, ref) => {
+  // Handle import from Excel
+  const handleImport = async (file: File) => {
+    try {
+      const { columns: importedColumns, rows: importedRows } = await parseExcelFile(file);
+      setColumns(importedColumns);
+      setRows(importedRows);
+    } catch (error) {
+      console.error('Failed to import Excel file:', error);
+      // You might want to add proper error handling here
     }
-  ]);
-  
-  const [rows, setRows] = useState<RowData[]>(() => 
-    Array.from({ length: 20 }, (_, index) => ({
-      id: `row-${index + 1}`,
-      cells: {}
-    }))
-  );
+  };
+
+  // Expose handleExport and handleImport through ref
+  React.useImperativeHandle(ref, () => ({
+    handleExport,
+    handleImport
+  }));
+
+  // Search state
+  const [filteredRows, setFilteredRows] = useState<RowData[]>([]);
+
+  const [columns, setColumns] = useState<ColumnDef[]>(defaultColumns);
+  const [rows, setRows] = useState<RowData[]>(defaultRows);
+
+  // Initialize filteredRows with all rows
+  useEffect(() => {
+    if (!props.searchTerm) {
+      setFilteredRows(rows);
+      return;
+    }
+
+    const searchTermLower = props.searchTerm.toLowerCase();
+    const filtered = rows.filter(row => {
+      // Search in all cells of the row
+      return Object.values(row.cells || {}).some(cell => {
+        const cellValue = String(cell.value || '').toLowerCase();
+        return cellValue.includes(searchTermLower);
+      });
+    });
+
+    setFilteredRows(filtered);
+  }, [props.searchTerm, rows]);
+
+  // Handle header color changes
+  const handleHeaderColorChange = (columnId: string, color: string) => {
+    setColumns(prevColumns => {
+      return prevColumns.map(column => {
+        if (column.id === columnId) {
+          return {
+            ...column,
+            headerColor: color
+          };
+        }
+        return column;
+      });
+    });
+  };
 
   // Handle cell changes
   const handleCellChange = (rowId: string, colId: string, value: unknown) => {
@@ -109,11 +102,26 @@ const ExcelSpreadsheet: React.FC = () => {
     });
   };
 
-  // Handle column type changes
-  const handleColumnTypeChange = (columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => {
-    // Update column type
+  // Handle column title changes
+  const handleColumnTitleChange = (columnId: string, title: string) => {
     setColumns(prevColumns => {
       return prevColumns.map(column => {
+        if (column.id === columnId) {
+          return {
+            ...column,
+            title
+          };
+        }
+        return column;
+      });
+    });
+  };
+
+  // Handle column type changes
+  const handleColumnTypeChange = (columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => {
+    // Update column type with immediate state update
+    setColumns(prevColumns => {
+      const newColumns = prevColumns.map(column => {
         if (column.id === columnId) {
           return {
             ...column,
@@ -122,12 +130,15 @@ const ExcelSpreadsheet: React.FC = () => {
         }
         return column;
       });
+      
+      console.log(`Column ${columnId} type changed to ${type}`);
+      return newColumns;
     });
     
     // If changing to URL type, process existing values to ensure they have https://
     if (type === 'url') {
       setRows(prevRows => {
-        return prevRows.map(row => {
+        const newRows = prevRows.map(row => {
           if (row.cells && row.cells[columnId] && row.cells[columnId].value) {
             const cellValue = String(row.cells[columnId].value);
             if (cellValue.trim() !== '' && !/^https?:\/\//i.test(cellValue)) {
@@ -145,18 +156,50 @@ const ExcelSpreadsheet: React.FC = () => {
           }
           return row;
         });
+        
+        return newRows;
       });
     }
+    
+    // Force a UI refresh after state updates
+    setTimeout(() => {
+      // Try to find the column headers and cells for this column
+      const columnElements = document.querySelectorAll(`[data-colid="${columnId}"]`);
+      columnElements.forEach(element => {
+        // Add a temporary class to trigger a reflow
+        if (element instanceof HTMLElement) {
+          element.classList.add('animate-column-type-flash');
+          setTimeout(() => {
+            element.classList.remove('animate-column-type-flash');
+          }, 500); // Match the animation duration
+        }
+      });
+    }, 0);
   };
 
-  // Handle column title changes
-  const handleColumnTitleChange = (columnId: string, newTitle: string) => {
+  // simple logic for generating column letters
+  const getColumnLetter = (index: number) => {
+    let columnName = '';
+    let dividend = index + 1;
+    let modulo;
+
+    while (dividend > 0) {
+      modulo = (dividend - 1) % 26;
+      columnName = String.fromCharCode(65 + modulo) + columnName;
+      dividend = Math.floor((dividend - modulo) / 26);
+    }
+    
+    return columnName;
+  };
+
+  // Handle column resizing
+  const handleColumnResize = (columnId: string, width: string) => {
     setColumns(prevColumns => {
       return prevColumns.map(column => {
         if (column.id === columnId) {
           return {
             ...column,
-            title: newTitle
+            width
           };
         }
         return column;
@@ -164,29 +207,15 @@ const ExcelSpreadsheet: React.FC = () => {
     });
   };
 
-  // simple logic for generating column letters
+  // Handle adding a new column
   const handleAddColumn = () => {
     const newColumnId = `col-${columns.length + 1}`;
-    const getColumnLetter = (index: number) => {
-      let columnName = '';
-      let dividend = index + 1;
-      let modulo;
-  
-      while (dividend > 0) {
-        modulo = (dividend - 1) % 26;
-        columnName = String.fromCharCode(65 + modulo) + columnName;
-        dividend = Math.floor((dividend - modulo) / 26);
-      }
-      
-      return columnName;
-    };
-
     setColumns(prevColumns => [
       ...prevColumns,
       {
         id: newColumnId,
         title: getColumnLetter(prevColumns.length),
-        width: 'min-w-32 w-32',
+        width: 'min-w-40 w-40',
         type: 'text'
       }
     ]);
@@ -204,13 +233,25 @@ const ExcelSpreadsheet: React.FC = () => {
     ]);
   };
 
+  // Handle export to Excel
+  const handleExport = () => {
+    // Format current date for the filename
+    const currentDate = new Date();
+    const dateString = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const fileName = `spreadsheet_${dateString}.xlsx`;
+    
+    // Export data to Excel - use filtered rows if there's a search term, otherwise use all rows
+    const dataToExport = props.searchTerm ? filteredRows : rows;
+    exportToExcel(columns, dataToExport, fileName);
+  };
+
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       {/* Spreadsheet Header */}
       <div className="flex items-center min-w-60 h-8 gap-2 overflow-hidden text-xs text-[#545454] font-normal leading-none bg-[#E2E2E2] px-2 py-1 border-b border-gray-200">
         <div className="items-center rounded self-stretch flex gap-1 bg-[#EEE] my-auto p-1">
           <img
-            src="https://cdn.builder.io/api/v1/image/assets/TEMP/74062749cd139ea98092fe39d5f6b239e9939c6f?placeholderIfAbsent=true"
+            src="icons/spreadsheeticon.png"
             className="aspect-[1] object-contain w-4 self-stretch shrink-0 my-auto"
             alt="Spreadsheet icon"
           />
@@ -219,7 +260,7 @@ const ExcelSpreadsheet: React.FC = () => {
           </div>
         </div>
         <img
-          src="https://cdn.builder.io/api/v1/image/assets/TEMP/c100ca763ec4aff47165d43cd2b97ea5344b6eef?placeholderIfAbsent=true"
+          src="icons/externalicon.png"
           className="aspect-[1] object-contain w-4 self-stretch shrink-0 my-auto"
           alt="External link"
         />
@@ -230,19 +271,22 @@ const ExcelSpreadsheet: React.FC = () => {
         <TableProvider initialColumns={columns} initialData={rows}>
           <SimpleTable
             columns={columns}
-            data={rows}
+            data={props.searchTerm ? filteredRows : rows}
             onCellChange={handleCellChange}
             onColumnTitleChange={handleColumnTitleChange}
             onColumnTypeChange={handleColumnTypeChange}
+            onHeaderColorChange={handleHeaderColorChange}
             onRowAdd={handleAddRow}
             onColumnAdd={handleAddColumn}
+            onColumnResize={handleColumnResize}
             enableEditing={true}
             enableSelection={true}
+            enableResizing={true}
           />
         </TableProvider>
       </div>
     </div>
   );
-};
+});
 
 export default ExcelSpreadsheet;

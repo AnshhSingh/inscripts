@@ -54,9 +54,13 @@ export const TableProvider: React.FC<TableProviderProps> = ({
 
       newData[rowIndex] = row;
       
+      // Keep the current editing cell active
       return {
         ...prevState,
-        data: newData
+        data: newData,
+        // Maintain the active cell and editing state
+        activeCell: prevState.activeCell,
+        editingCell: prevState.editingCell
       };
     });
   }, []);

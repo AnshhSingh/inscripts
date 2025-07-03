@@ -7,3 +7,7 @@ export * from './TableRow';
 export * from './context';
 export * from './hooks';
 export * from './TableProvider';
+export * from './exportUtils';
+export * from './importUtils';
+export * from './defaultsUtils';
+export * from './defaultData';

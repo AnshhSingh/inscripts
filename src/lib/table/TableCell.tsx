@@ -55,14 +55,32 @@ export const TableCell: React.FC<TableCellProps> = ({
       setForceUpdate(prev => prev + 1);
     }
   }, [type, value, isActive, isEditing]);
+  
+  // Force rerender when value changes to ensure UI reflects latest data
+  useEffect(() => {
+    if (value !== undefined) {
+      setForceUpdate(prev => prev + 1);
+    }
+  }, [value, type]); // Also trigger rerender when type changes
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      // Use a small timeout to ensure the DOM has updated before focusing not sure if this helps but ai told me to do this
+      // Use a small timeout to ensure the DOM has updated before focusing
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
+          // Select all text for easier editing on single-click
           inputRef.current.select();
+          // Position cursor at the end for better user experience when continuing to type
+          const length = inputRef.current.value.length;
+          if (length > 0) {
+            try {
+              inputRef.current.setSelectionRange(0, length);
+            } catch (e) {
+              // Fallback if setSelectionRange is not supported
+              inputRef.current.select();
+            }
+          }
         }
       }, 10);
     }
@@ -87,24 +105,33 @@ export const TableCell: React.FC<TableCellProps> = ({
   const { stopEditingCell } = useTable();
   
   const handleBlur = () => {
-    if (onChange) {
-      onChange(editValue);
-      stopEditingCell();
-    }
+    // Only stop editing on blur, we've already been updating the value as user types
+    stopEditingCell();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (onChange) {
-        onChange(editValue);
-        stopEditingCell();
-      }
+      // We've already been updating the value as the user types,
+      // so we just need to stop editing
+      stopEditingCell();
     } else if (e.key === 'Escape') {
+      // Revert to original value on Escape
       setEditValue(String(value || ''));
       stopEditingCell();
       if (onChange) {
-        onChange(value);
+        onChange(value); // Restore the original value
+      }
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Tab') {
+      // Let the table component handle arrow keys and Tab for navigation
+      e.stopPropagation();
+      // Don't prevent default so that text cursor can still be moved within the input
+      if (e.key === 'Tab') {
+        e.preventDefault(); // Prevent tab from moving focus away from the input
+        // Apply the current value before navigating with Tab
+        if (onChange) {
+          onChange(editValue);
+        }
       }
     }
   };
@@ -147,20 +174,32 @@ export const TableCell: React.FC<TableCellProps> = ({
       className={`relative justify-center items-center flex min-h-8 w-full overflow-hidden text-xs font-normal leading-none h-8 bg-white px-2 border-b border-gray-200 ${alignClass} ${className} ${isActive ? 'ring-2 ring-blue-400 z-10 bg-blue-50' : 'hover:bg-gray-50'} cursor-cell`}
       style={style}
     >
-      {isEditing ? (
-        <input
+      {isEditing ? (        <input
           ref={inputRef}
           type={type === 'number' ? 'number' : type === 'date' ? 'date' : 'text'}
           value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            setEditValue(newValue);
+            // Update the value immediately as the user types
+            if (onChange) {
+              onChange(newValue);
+            }
+          }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-            className="w-full h-full text-[#121212] px-0 py-0 border-none bg-transparent outline-none"
+          className="w-full h-full text-[#121212] px-0 py-0 border-none bg-transparent outline-none"
           style={{ minWidth: '100%' }}
           autoFocus
+          // When first clicked, select all text for easy replacement
+          onFocus={(e) => e.target.select()}
         />
       ) : (
-        <div className={`text-[#121212] w-full overflow-hidden text-ellipsis whitespace-nowrap ${type === 'url' ? 'text-blue-600 underline' : ''}`}>
+        <div 
+          className={`text-[#121212] w-full overflow-hidden text-ellipsis whitespace-nowrap ${type === 'url' ? 'text-blue-600 underline' : ''}`} 
+          title={value ? String(value) : ''}
+          key={`cell-content-${String(value || '')}-${forceUpdate}`} // Key to force rerender when value changes
+        >
           {(() => {
             if (!value) return "\u00A0"; // Use non-breaking space to maintain height if empty
             
@@ -206,6 +245,7 @@ export const TableCell: React.FC<TableCellProps> = ({
                       onClick={openUrl}
                       className="text-blue-600 underline block w-full overflow-hidden text-ellipsis whitespace-nowrap absolute inset-0"
                       key={`url-${urlString}-${forceUpdate}`} // Key helps force remounting
+                      title={urlString} // Show full URL on hover
                     >
                       {urlString}
                     </a>

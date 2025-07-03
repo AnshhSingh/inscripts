@@ -12,13 +12,15 @@ export const SimpleTable: React.FC<TableProps> = ({
   onCellChange,
   onColumnTitleChange,
   onColumnTypeChange,
+  onColumnResize,
   onRowAdd,
   onColumnAdd,
+  onHeaderColorChange,
   showRowNumbers = true,
   enableEditing = true,
   enableSelection = true,
   enableSorting = false,
-  enableResizing = false,
+  enableResizing = true, // Enable resizing by default
   enableFiltering = false,
   className = '',
   style = {},
@@ -29,11 +31,18 @@ export const SimpleTable: React.FC<TableProps> = ({
   const tableRef = useRef<HTMLDivElement>(null);
   const { state, setActiveCell, startEditingCell, stopEditingCell } = useTable();
 
-  // Handle cell click
+  // Handle column header color change
+  const handleHeaderColorChange = useCallback((columnId: string, color: string) => {
+    if (!onHeaderColorChange) return;
+    onHeaderColorChange(columnId, color);
+  }, [onHeaderColorChange]);
+
+  // Handle cell click - now editing on single click
   const handleCellClick = useCallback((rowId: string, colId: string, e: React.MouseEvent) => {
     if (!enableSelection) return;
     setActiveCell(rowId, colId);
-    if (enableEditing && e.detail === 2) {
+    // Start editing on single click if editing is enabled
+    if (enableEditing) {
       startEditingCell(rowId, colId);
     }
   }, [enableSelection, enableEditing, setActiveCell, startEditingCell]);
@@ -48,16 +57,31 @@ export const SimpleTable: React.FC<TableProps> = ({
       }
     }
     if (onCellChange) {
+      // Update the data model with the new value
       onCellChange(rowId, colId, processedValue);
     }
-    stopEditingCell();
-    // Focus table for keyboard navigation
-    if (tableRef.current) tableRef.current.focus();
-  }, [onCellChange, columns, stopEditingCell]);
+    
+    // Note: We don't stop editing here for continuous updates while typing
+    // The editing will be stopped by the arrow key or enter handlers
+  }, [onCellChange, columns]);
 
   const handleColumnTypeChange = useCallback((columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => {
     if (onColumnTypeChange) {
+      // Ensure the column type change is properly propagated to parent components
       onColumnTypeChange(columnId, type);
+      
+      // Force a re-render after type change to ensure the UI updates
+      setTimeout(() => {
+        const element = document.querySelector(`[data-colid="${columnId}"]`) as HTMLElement | null;
+        if (element) {
+          // Trigger a slight UI update to ensure the component refreshes
+          const currentDisplay = element.style.display;
+          element.style.display = 'none';
+          setTimeout(() => {
+            element.style.display = currentDisplay;
+          }, 0);
+        }
+      }, 0);
     }
   }, [onColumnTypeChange]);
 
@@ -72,44 +96,106 @@ export const SimpleTable: React.FC<TableProps> = ({
       if (rowIndex === -1 || colIndex === -1) return;
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setActiveCell(data[(rowIndex - 1 + data.length) % data.length].id, colId);
+        // Stop editing the current cell (changes are already saved)
+        if (state.editingCell) stopEditingCell();
+        // Move to the cell above
+        const nextRowId = data[(rowIndex - 1 + data.length) % data.length].id;
+        setActiveCell(nextRowId, colId);
+        // Make the new cell editable
+        if (enableEditing) startEditingCell(nextRowId, colId);
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveCell(data[(rowIndex + 1) % data.length].id, colId);
+        // Stop editing the current cell (changes are already saved)
+        if (state.editingCell) stopEditingCell();
+        // Move to the cell below
+        const nextRowId = data[(rowIndex + 1) % data.length].id;
+        setActiveCell(nextRowId, colId);
+        // Make the new cell editable
+        if (enableEditing) startEditingCell(nextRowId, colId);
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setActiveCell(rowId, columns[(colIndex - 1 + columns.length) % columns.length].id);
+        // Stop editing the current cell (changes are already saved)
+        if (state.editingCell) stopEditingCell();
+        // Move to the cell to the left
+        const nextColId = columns[(colIndex - 1 + columns.length) % columns.length].id;
+        setActiveCell(rowId, nextColId);
+        // Make the new cell editable
+        if (enableEditing) startEditingCell(rowId, nextColId);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setActiveCell(rowId, columns[(colIndex + 1) % columns.length].id);
+        // Stop editing the current cell (changes are already saved)
+        if (state.editingCell) stopEditingCell();
+        // Move to the cell to the right
+        const nextColId = columns[(colIndex + 1) % columns.length].id;
+        setActiveCell(rowId, nextColId);
+        // Make the new cell editable
+        if (enableEditing) startEditingCell(rowId, nextColId);
       } else if (e.key === 'Tab') {
         e.preventDefault();
+        // First stop editing if currently editing
+        if (state.editingCell) stopEditingCell();
+
+        let nextRowId: string, nextColId: string;
+
         if (e.shiftKey) {
+          // Shift+Tab moves backwards
           if (colIndex === 0 && rowIndex === 0) {
-            setActiveCell(data[data.length - 1].id, columns[columns.length - 1].id);
+            // If at the first cell, wrap around to the last cell
+            nextRowId = data[data.length - 1].id;
+            nextColId = columns[columns.length - 1].id;
           } else if (colIndex === 0) {
-            setActiveCell(data[(rowIndex - 1 + data.length) % data.length].id, columns[columns.length - 1].id);
+            // If at the first column, go to the last column of the previous row
+            nextRowId = data[(rowIndex - 1 + data.length) % data.length].id;
+            nextColId = columns[columns.length - 1].id;
           } else {
-            setActiveCell(rowId, columns[(colIndex - 1 + columns.length) % columns.length].id);
+            // Otherwise, just move one column left
+            nextRowId = rowId;
+            nextColId = columns[(colIndex - 1 + columns.length) % columns.length].id;
           }
         } else {
+          // Tab moves forwards
           if (colIndex === columns.length - 1 && rowIndex === data.length - 1) {
-            setActiveCell(data[0].id, columns[0].id);
+            // If at the last cell, wrap around to the first cell
+            nextRowId = data[0].id;
+            nextColId = columns[0].id;
           } else if (colIndex === columns.length - 1) {
-            setActiveCell(data[(rowIndex + 1) % data.length].id, columns[0].id);
+            // If at the last column, go to the first column of the next row
+            nextRowId = data[(rowIndex + 1) % data.length].id;
+            nextColId = columns[0].id;
           } else {
-            setActiveCell(rowId, columns[(colIndex + 1) % columns.length].id);
+            // Otherwise, just move one column right
+            nextRowId = rowId;
+            nextColId = columns[(colIndex + 1) % columns.length].id;
           }
         }
+        
+        // Set the active cell and make it editable
+        setActiveCell(nextRowId, nextColId);
+        if (enableEditing) startEditingCell(nextRowId, nextColId);
       } else if (e.key === 'Enter' && enableEditing) {
         if (state.editingCell) {
+          // On Enter, commit the current edit, move to the next row and make it editable
           stopEditingCell();
-          setActiveCell(data[(rowIndex + 1) % data.length].id, colId);
+          const nextRowId = data[(rowIndex + 1) % data.length].id;
+          setActiveCell(nextRowId, colId);
+          // Make the next cell editable
+          startEditingCell(nextRowId, colId);
         } else {
+          // If not currently editing, start editing
           startEditingCell(rowId, colId);
         }
       } else if (e.key === 'Escape' && state.editingCell) {
+        // Escape cancels editing but keeps the cell selected
         stopEditingCell();
+      } else if (
+        !state.editingCell && // Only if we're not already editing
+        enableEditing &&
+        e.key.length === 1 && // Single character keys (letters, numbers, symbols)
+        !e.ctrlKey && !e.altKey && !e.metaKey // No modifier keys
+      ) {
+        // Start editing when typing directly into a cell
+        startEditingCell(rowId, colId);
+        // The actual input handling will be done by the input element
       }
     };
     const tableElement = tableRef.current;
@@ -165,12 +251,17 @@ export const SimpleTable: React.FC<TableProps> = ({
         <div className="relative flex min-w-60 items-stretch h-full">
           {/* Column headers */}
           {columns.map((column) => (
-            <div key={`col-${column.id}`} className={`${column.width || 'min-w-32 w-32'} border-r border-gray-200`}>
+            <div 
+              key={`col-${column.id}`} 
+              className={`${column.width || 'min-w-32 w-32'} border-r border-gray-200 transition-width duration-100`}
+            >
               <TableHeader 
                 column={column} 
                 className={headerClassName}
                 onTitleChange={onColumnTitleChange ? (title) => onColumnTitleChange(column.id, title) : undefined}
-                onTypeChange={onColumnTypeChange}
+                onTypeChange={onColumnTypeChange ? (columnId, type) => handleColumnTypeChange(columnId, type) : undefined}
+                onResize={enableResizing && onColumnResize ? (columnId, width) => onColumnResize(columnId, width) : undefined}
+                onColorChange={handleHeaderColorChange}
               />
               
               {/* Column cells */}
@@ -212,8 +303,8 @@ export const SimpleTable: React.FC<TableProps> = ({
 
           {/* Add Column button */}
           {onColumnAdd && (
-            <div className="w-8 border-l border-r border-gray-200">
-              <div className="flex items-center justify-center h-8 bg-gray-50 border-b border-gray-200">
+            <div className="min-w-40 w-40 border-l border-r border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-center h-8 border-b border-gray-200">
                 <button 
                   className="hover:bg-gray-100 transition-colors rounded-full p-1 w-6 h-6 flex items-center justify-center"
                   onClick={onColumnAdd}

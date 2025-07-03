@@ -84,11 +84,20 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'column-type-flash': {
+					'0%': { backgroundColor: 'rgba(59, 130, 246, 0.1)' },
+					'50%': { backgroundColor: 'rgba(59, 130, 246, 0.2)' },
+					'100%': { backgroundColor: 'transparent' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'column-type-flash': 'column-type-flash 0.5s ease-out'
+			},
+			transitionProperty: {
+				'width': 'width'
 			}
 		}
 	},
