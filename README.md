@@ -29,7 +29,6 @@ npm run build
 - Import/Export button functionality for excel files
 - Customizable column colours
 - Integrated search functionality
-- 
 ### tradeoffs
 - Some minor parts of UI were skipped as it does not suit the interactive design
 - No data is presisted
