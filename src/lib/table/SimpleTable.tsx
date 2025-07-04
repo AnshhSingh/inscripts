@@ -275,9 +275,9 @@ export const SimpleTable: React.FC<TableProps> = ({
             ))}
           </div>
         )}
-        =
+        
         <div className="relative flex min-w-60 items-stretch h-full">
-          ]
+          
           {columns.map((column) => (
             <div
               key={`col-${column.id}`}
@@ -305,7 +305,7 @@ export const SimpleTable: React.FC<TableProps> = ({
                 }
                 onColorChange={handleHeaderColorChange}
               />
-              =
+              
               {data.map((row) => {
                 const cellValue = column.accessorKey
                   ? row[column.accessorKey]
