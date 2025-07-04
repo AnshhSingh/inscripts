@@ -1,9 +1,11 @@
 // Table library types this should do for now
 
+export type StatusType = 'not-set' | 'in-process' | 'need-to-start' | 'complete' | 'blocked';
+
 export interface CellData {
   id: string;
   value: unknown;
-  type?: 'text' | 'number' | 'date' | 'url' | 'custom';
+  type?: 'text' | 'number' | 'date' | 'url' | 'status' | 'custom';
   textAlign?: 'left' | 'center' | 'right';
   format?: string;
   style?: {
@@ -20,7 +22,7 @@ export interface ColumnDef {
   title: string;
   accessorKey?: string;
   width?: string;
-  type?: 'text' | 'number' | 'date' | 'url' | 'custom';
+  type?: 'text' | 'number' | 'date' | 'url' | 'status' | 'custom';
   headerIcon?: string;
   headerStyle?: React.CSSProperties;
   headerColor?: string;

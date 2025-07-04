@@ -135,7 +135,7 @@ const ExcelSpreadsheet = React.forwardRef<ExcelSpreadsheetRef, ExcelSpreadsheetP
       return newColumns;
     });
     
-    // If changing to URL type, process existing values to ensure they have https://
+  
     if (type === 'url') {
       setRows(prevRows => {
         const newRows = prevRows.map(row => {
@@ -192,7 +192,7 @@ const ExcelSpreadsheet = React.forwardRef<ExcelSpreadsheetRef, ExcelSpreadsheetP
     return columnName;
   };
 
-  // Handle column resizing
+// for column resize
   const handleColumnResize = (columnId: string, width: string) => {
     setColumns(prevColumns => {
       return prevColumns.map(column => {

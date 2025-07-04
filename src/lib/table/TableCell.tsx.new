@@ -4,20 +4,11 @@ import { StatusType } from './types';
 
 // Status colors for different status values
 const STATUS_COLORS = {
-  'not-set': '#EEEEEE',
+  'not-set': '#DDDDDD',
   'in-process': '#FFF3C2',
   'need-to-start': '#E6F3FF',
   'complete': '#E0F7E6',
-  'blocked': '#FFE1DE'
-};
-
-// Status text colors (darker versions of the background colors)
-const STATUS_TEXT_COLORS = {
-  'not-set': '#777777',
-  'in-process': '#8A7E00',
-  'need-to-start': '#0056B3',
-  'complete': '#1B7740',
-  'blocked': '#B53F36'
+  'blocked': '#FFE2DD'
 };
 
 // Status labels for display
@@ -64,7 +55,7 @@ export const TableCell: React.FC<TableCellProps> = ({
   customRenderer,
   showControls = false
 }) => {
-  const [editValue, setEditValue] = useState(type === 'status' ? (value ? String(value) : '') : String(value || ''));
+  const [editValue, setEditValue] = useState(String(value || ''));
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -74,13 +65,8 @@ export const TableCell: React.FC<TableCellProps> = ({
   
   // Update local state when the value prop changes
   useEffect(() => {
-    if (type === 'status') {
-      // For status type, keep empty value as empty string rather than 'undefined' or 'null'
-      setEditValue(value ? String(value) : '');
-    } else {
-      setEditValue(String(value || ''));
-    }
-  }, [value, type]);
+    setEditValue(String(value || ''));
+  }, [value]);
 
   // Special handling for URL type to ensure proper rendering
   useEffect(() => {
@@ -187,23 +173,25 @@ export const TableCell: React.FC<TableCellProps> = ({
   // Render status cell content
   const renderStatusValue = () => {
     if (!value) {
-      // Return empty content for initial state
-      return null;
+      return (
+        <div className="flex items-center gap-2 cursor-pointer">
+          <div className="w-3 h-3 rounded-full bg-[#DDDDDD]"></div>
+          <span>Not set</span>
+        </div>
+      );
     }
     
     const statusValue = (typeof value === 'string' ? value : 'not-set') as StatusType;
     const statusColor = STATUS_COLORS[statusValue] || STATUS_COLORS['not-set'];
     const statusLabel = STATUS_LABELS[statusValue] || 'Not set';
-    const textColor = STATUS_TEXT_COLORS[statusValue] || STATUS_TEXT_COLORS['not-set'];
     
     return (
-      <div className="flex justify-center">
+      <div className="flex items-center gap-2 cursor-pointer w-full">
         <div 
-          className="px-3 py-1 rounded-full text-center text-xs"
-          style={{ backgroundColor: statusColor, color: textColor }}
-        >
-          {statusLabel}
-        </div>
+          className="w-3 h-3 rounded-full shrink-0" 
+          style={{ backgroundColor: statusColor }}
+        ></div>
+        <span className="truncate">{statusLabel}</span>
       </div>
     );
   };
@@ -226,44 +214,38 @@ export const TableCell: React.FC<TableCellProps> = ({
       data-rowid={rowId}
       data-colid={colId}
       onClick={onClick}
-      className={`relative justify-center items-center flex min-h-8 w-full overflow-hidden text-xs font-normal leading-none h-8 bg-white px-2 border-b border-gray-200 ${type === 'status' ? 'py-0.5' : ''} ${alignClass} ${className} ${isActive ? 'ring-2 ring-blue-400 z-10 bg-blue-50' : 'hover:bg-gray-50'} cursor-cell`}
+      className={`relative justify-center items-center flex min-h-8 w-full overflow-hidden text-xs font-normal leading-none h-8 bg-white px-2 border-b border-gray-200 ${alignClass} ${className} ${isActive ? 'ring-2 ring-blue-400 z-10 bg-blue-50' : 'hover:bg-gray-50'} cursor-cell`}
       style={style}
     >
       {isEditing ? (
         type === 'status' ? (
-          <div className="w-full flex justify-center">
-            <div className="relative w-32">
-              <select
-                ref={selectRef}
-                value={editValue || ''}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setEditValue(newValue);
-                  if (onChange) {
-                    onChange(newValue === '' ? null : newValue);
-                  }
-                }}
-                onBlur={handleBlur}
-                onKeyDown={handleKeyDown}
-                className="w-full px-3 py-1 border border-gray-300 rounded-full text-center text-xs appearance-none cursor-pointer focus:outline-none focus:border-blue-500"
-                style={{
-                  backgroundColor: editValue ? STATUS_COLORS[editValue as StatusType] : 'white',
-                  color: editValue ? STATUS_TEXT_COLORS[editValue as StatusType] : '#121212',
-                }}
-                autoFocus
-              >
-                <option value="" style={{ backgroundColor: 'white', color: '#121212' }}>Select status</option>
-                <option value="not-set" style={{ backgroundColor: STATUS_COLORS['not-set'], color: STATUS_TEXT_COLORS['not-set'] }}>Not set</option>
-                <option value="in-process" style={{ backgroundColor: STATUS_COLORS['in-process'], color: STATUS_TEXT_COLORS['in-process'] }}>In-process</option>
-                <option value="need-to-start" style={{ backgroundColor: STATUS_COLORS['need-to-start'], color: STATUS_TEXT_COLORS['need-to-start'] }}>Need to start</option>
-                <option value="complete" style={{ backgroundColor: STATUS_COLORS['complete'], color: STATUS_TEXT_COLORS['complete'] }}>Complete</option>
-                <option value="blocked" style={{ backgroundColor: STATUS_COLORS['blocked'], color: STATUS_TEXT_COLORS['blocked'] }}>Blocked</option>
-              </select>
-              <div className="absolute right-2 top-0 bottom-0 pointer-events-none flex items-center">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
+          <div className="w-full relative">
+            <select
+              ref={selectRef}
+              value={editValue}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setEditValue(newValue);
+                if (onChange) {
+                  onChange(newValue);
+                }
+              }}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              className="w-full h-full text-[#121212] px-0 py-0 border-none bg-transparent outline-none appearance-none cursor-pointer"
+              style={{ minWidth: '100%' }}
+              autoFocus
+            >
+              <option value="not-set">Not set</option>
+              <option value="in-process">In-process</option>
+              <option value="need-to-start">Need to start</option>
+              <option value="complete">Complete</option>
+              <option value="blocked">Blocked</option>
+            </select>
+            <div className="absolute right-0 top-0 bottom-0 pointer-events-none flex items-center pr-2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </div>
           </div>
         ) : (
@@ -294,12 +276,8 @@ export const TableCell: React.FC<TableCellProps> = ({
           key={`cell-content-${String(value || '')}-${forceUpdate}`} // Key to force rerender when value changes
         >
           {(() => {
-            // For empty cells (except status which we handle specially)
-            if (!value) {
-              if (type === 'status') {
-                return renderStatusValue(); // Will return null for empty status
-              }
-              return "\u00A0"; // Use non-breaking space to maintain height for other empty cells
+            if (!value && type !== 'status') {
+              return "\u00A0"; // Use non-breaking space to maintain height if empty
             }
             
             // Format based on cell type

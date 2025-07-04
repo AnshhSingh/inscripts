@@ -6,3 +6,4 @@ export * from './DateIcon';
 export * from './UrlIcon';
 export * from './CustomIcon';
 export * from './ChevronDownIcon';
+export * from './StatusIcon';

@@ -14,12 +14,12 @@ export const TopBar: React.FC<TopBarProps> = ({ className = "", onSearch, search
     const value = e.target.value;
     console.log('TopBar: Search input changed:', value);
     
-    // Clear existing timeout
+   
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
 
-    // Set new timeout
+ 
     debounceTimeout.current = setTimeout(() => {
       console.log('TopBar: Search executed with term:', value);
       onSearch?.(value);

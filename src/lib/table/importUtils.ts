@@ -13,9 +13,7 @@ const letterToIndex = (letter: string): number => {
   return result - 1;
 };
 
-/**
- * Get column letter from index (0 -> A, 1 -> B, etc.)
- */
+
 const indexToLetter = (index: number): string => {
   let temp = index + 1;
   let letter = '';
@@ -65,8 +63,17 @@ export const parseExcelFile = async (file: File): Promise<{
         }
         
         // Create rows
-        const rows: RowData[] = jsonData.slice(1).map((row: any, index) => {
-          const cells: Record<string, { id: string; value: any }> = {};
+        interface ExcelRow {
+          [key: string]: string | number | boolean | null;
+        }
+
+        interface CellData {
+          id: string;
+          value: string | number | boolean | null;
+        }
+
+        const rows: RowData[] = jsonData.slice(1).map((row: ExcelRow, index) => {
+          const cells: Record<string, CellData> = {};
           
           // Process each column in the row
           Object.entries(row).forEach(([colLetter, value]) => {

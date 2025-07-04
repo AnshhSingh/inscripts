@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ColumnDef } from './types';
-import { TextIcon, NumberIcon, DateIcon, UrlIcon, CustomIcon, ChevronDownIcon } from '../icons';
+import { TextIcon, NumberIcon, DateIcon, UrlIcon, CustomIcon, ChevronDownIcon, StatusIcon } from '../icons';
 
 interface TableHeaderProps {
   column: ColumnDef;
@@ -8,7 +8,7 @@ interface TableHeaderProps {
   onSort?: () => void;
   onResize?: (columnId: string, width: string) => void;
   onTitleChange?: (title: string) => void;
-  onTypeChange?: (columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'custom') => void;
+  onTypeChange?: (columnId: string, type: 'text' | 'number' | 'date' | 'url' | 'status' | 'custom') => void;
   onColorChange?: (columnId: string, color: string) => void;
 }
 
@@ -138,7 +138,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
     }
   };
 
-  const handleTypeChange = (type: 'text' | 'number' | 'date' | 'url' | 'custom') => {
+  const handleTypeChange = (type: 'text' | 'number' | 'date' | 'url' | 'status' | 'custom') => {
     if (onTypeChange) {
       onTypeChange(column.id, type);
       console.log(`Changed column ${column.title} type to: ${type}`);
@@ -171,6 +171,8 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
         return <DateIcon title="Date Column" className="w-5 h-5" />;
       case 'url':
         return <UrlIcon title="URL Column" className="w-5 h-5" />;
+      case 'status':
+        return <StatusIcon title="Status Column" className="w-5 h-5" />;
       case 'custom':
         return <CustomIcon title="Custom Column" className="w-5 h-5" />;
       default:
@@ -376,6 +378,18 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
                 type="button"
               >
                 🔗 - URL Column
+              </button>
+              <button 
+                className="block w-full text-left px-2 py-1 text-xs hover:bg-gray-100 rounded"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleTypeChange('status');
+                }}
+                type="button"
+              >
+                ⚪ - Status Column
               </button>
             </div>
           )}
